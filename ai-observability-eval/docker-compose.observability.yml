@@ -1,0 +1,37 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: ai-obs-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver (/v1/traces expects ExportTraceServiceRequest resourceSpans)
+    depends_on:
+      - phoenix
+      - jaeger
+    restart: unless-stopped
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: ai-obs-phoenix
+    ports:
+      - "6006:6006"   # Phoenix Web UI & OTLP HTTP (/v1/traces)
+    environment:
+      - PHOENIX_WORKING_DIR=/mnt/data
+    volumes:
+      - phoenix_data:/mnt/data
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ai-obs-jaeger
+    ports:
+      - "16686:16686" # Jaeger Distributed Service Map UI
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+
+volumes:
+  phoenix_data:
